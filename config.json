@@ -9,5 +9,5 @@
         ".exe":true
     },
     "daylimit": 30,
-    "root":"C:\\Users\\Anthony\\OneDrive\\ENC-4xxx"
+    "root":"root path"
 }

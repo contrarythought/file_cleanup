@@ -81,7 +81,7 @@ func (f *FileTree) AddFile(con *Config, fi *fs.FileInfo, entryPath string) {
 				Days int
 			}{
 				Size: (*fi).Size(),
-				Days: int(time.Since((*fi).ModTime()).Hours() / 24),
+				Days: int(days),
 			}
 			f.mu.Unlock()
 		}

@@ -1,0 +1,13 @@
+{
+    "extset": {
+        "pdf":true,
+        ".doc":true,
+        ".docx":true,
+        ".txt":true,
+        ".xls":true,
+        ".xlsx":true,
+        ".exe":true
+    },
+    "daylimit": 30,
+    "root":"C:\\Users\\Anthony\\OneDrive\\ENC-4xxx"
+}

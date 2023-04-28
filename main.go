@@ -33,7 +33,7 @@ func DefaultConfig() *Config {
 			".go":   true,
 		},
 		DayLimit: 30,
-		Root:     `input root path`,
+		Root:     `root path`,
 	}
 }
 
@@ -54,7 +54,7 @@ func getNumWorkers() int {
 }
 
 type FileTree struct {
-	FileSizeMapping map[string]struct {
+	fileSizeMapping map[string]struct {
 		Size int64
 		Days int
 	}
@@ -63,7 +63,7 @@ type FileTree struct {
 
 func NewFileTree() *FileTree {
 	return &FileTree{
-		FileSizeMapping: make(map[string]struct {
+		fileSizeMapping: make(map[string]struct {
 			Size int64
 			Days int
 		}),
@@ -73,20 +73,23 @@ func NewFileTree() *FileTree {
 func (f *FileTree) AddFile(con *Config, fi *fs.FileInfo, entryPath string) {
 	// if file extension is part of the extension we want, add it to the map
 	if _, in := con.ExtSet[filepath.Ext(entryPath)]; in {
-		f.mu.Lock()
-		f.FileSizeMapping[entryPath] = struct {
-			Size int64
-			Days int
-		}{
-			Size: (*fi).Size(),
-			Days: int(time.Since((*fi).ModTime()).Hours() / 24),
+		days := time.Since((*fi).ModTime()).Hours() / 24
+		if days > float64(con.DayLimit) {
+			f.mu.Lock()
+			f.fileSizeMapping[entryPath] = struct {
+				Size int64
+				Days int
+			}{
+				Size: (*fi).Size(),
+				Days: int(time.Since((*fi).ModTime()).Hours() / 24),
+			}
+			f.mu.Unlock()
 		}
-		f.mu.Unlock()
 	}
 }
 
 func (f *FileTree) PrintItems() {
-	for item, stats := range f.FileSizeMapping {
+	for item, stats := range f.fileSizeMapping {
 		fmt.Println(item, "=>", stats.Size, "=>", stats.Days, "days")
 	}
 }

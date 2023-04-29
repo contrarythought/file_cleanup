@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 )
@@ -53,20 +54,34 @@ func getNumWorkers() int {
 	return runtime.NumCPU()
 }
 
+type fileStat struct {
+	size int64
+	days int
+	name string
+}
+
+type stats []fileStat
+
+func (s stats) Len() int {
+	return len(s)
+}
+
+func (s stats) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s stats) Less(i, j int) bool {
+	return s[i].days < s[j].days
+}
+
 type FileTree struct {
-	fileSizeMapping map[string]struct {
-		Size int64
-		Days int
-	}
-	mu sync.Mutex
+	fileSizeMapping map[string]fileStat
+	mu              sync.Mutex
 }
 
 func NewFileTree() *FileTree {
 	return &FileTree{
-		fileSizeMapping: make(map[string]struct {
-			Size int64
-			Days int
-		}),
+		fileSizeMapping: make(map[string]fileStat),
 	}
 }
 
@@ -74,23 +89,43 @@ func (f *FileTree) AddFile(con *Config, fi *fs.FileInfo, entryPath string) {
 	// if file extension is part of the extension we want, add it to the map
 	if _, in := con.ExtSet[filepath.Ext(entryPath)]; in {
 		days := time.Since((*fi).ModTime()).Hours() / 24
-		if days > float64(con.DayLimit) {
+		if days >= float64(con.DayLimit) {
 			f.mu.Lock()
-			f.fileSizeMapping[entryPath] = struct {
-				Size int64
-				Days int
-			}{
-				Size: (*fi).Size(),
-				Days: int(days),
+			f.fileSizeMapping[entryPath] = fileStat{
+				size: (*fi).Size(),
+				days: int(days),
 			}
 			f.mu.Unlock()
 		}
 	}
 }
 
+func (f *FileTree) filter() stats {
+	s := make(stats, len(f.fileSizeMapping))
+
+	for item, stat := range f.fileSizeMapping {
+		s = append(s, fileStat{
+			name: item,
+			size: stat.size,
+			days: stat.days,
+		})
+	}
+
+	sort.Sort(s)
+	return s
+}
+
+func (f *FileTree) FilterAndDisplay() {
+	orderedStats := f.filter()
+
+	for _, stat := range orderedStats {
+		fmt.Println(stat.name, "=>", stat.days, "days =>", stat.size)
+	}
+}
+
 func (f *FileTree) PrintItems() {
 	for item, stats := range f.fileSizeMapping {
-		fmt.Println(item, "=>", stats.Size, "=>", stats.Days, "days")
+		fmt.Println(item, "=>", stats.size, "=>", stats.days, "days")
 	}
 }
 
@@ -204,7 +239,7 @@ func main() {
 	}
 	finish := time.Since(start)
 
-	fileTree.PrintItems()
+	fileTree.FilterAndDisplay()
 
 	fmt.Println("duration:", finish.Seconds(), "seconds")
 }

@@ -33,8 +33,8 @@ func DefaultConfig() *Config {
 			".txt":  true,
 			".go":   true,
 		},
-		DayLimit: 30,
-		Root:     `root path`,
+		DayLimit: 365,
+		Root:     `C:\Users\Anthony\OneDrive\Documents`,
 	}
 }
 
@@ -101,7 +101,7 @@ func (f *FileTree) AddFile(con *Config, fi *fs.FileInfo, entryPath string) {
 }
 
 func (f *FileTree) filter() stats {
-	s := make(stats, len(f.fileSizeMapping))
+	var s stats
 
 	for item, stat := range f.fileSizeMapping {
 		s = append(s, fileStat{
@@ -119,7 +119,7 @@ func (f *FileTree) FilterAndDisplay() {
 	orderedStats := f.filter()
 
 	for _, stat := range orderedStats {
-		fmt.Println(stat.name, "=>", stat.days, "days =>", stat.size)
+		fmt.Println(stat.name, "=>", stat.size, "bytes ", stat.days, "days")
 	}
 }
 
@@ -211,6 +211,25 @@ func FindAndGather(con *Config, fileTree *FileTree) error {
 	return nil
 }
 
+const (
+	OLD_FILE_DIR = `C:\old_files`
+)
+
+func checkForOldDir() error {
+	entries, err := os.ReadDir(`C:\`)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() && filepath.Join(`C:\`, entry.Name()) == OLD_FILE_DIR {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to find %s", OLD_FILE_DIR)
+}
+
 func main() {
 	var c *Config
 	if len(os.Args) == 2 {
@@ -229,6 +248,14 @@ func main() {
 	} else {
 		fmt.Println("usage <opt: config file>")
 		os.Exit(0)
+	}
+
+	if err := checkForOldDir(); err != nil {
+		fmt.Println(err)
+		if err = os.Mkdir(OLD_FILE_DIR, 0755); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("created", OLD_FILE_DIR)
 	}
 
 	fileTree := NewFileTree()
